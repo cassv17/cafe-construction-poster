@@ -641,7 +641,9 @@
     };
   }
 
-  function autoH(t) { t.style.height = 'auto'; t.style.height = Math.min(Math.max(t.scrollHeight + 4, 90), 520) + 'px'; t.addEventListener('input', function () { autoH(t); }); }
+  function fitH(t) { t.style.height = 'auto'; t.style.height = Math.min(Math.max(t.scrollHeight + 4, 90), 520) + 'px'; }
+  // 입력 리스너는 글 상자마다 한 번만 건다 (입력할 때마다 다시 걸면 리스너가 2배씩 늘어 화면이 멈춘다)
+  function autoH(t) { fitH(t); if (t._autoH) return; t._autoH = true; t.addEventListener('input', function () { fitH(t); }); }
 
   /** 화면의 입력값을 job 에 모은다. */
   function collect() {
