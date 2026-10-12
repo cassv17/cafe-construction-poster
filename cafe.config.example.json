@@ -1,0 +1,9 @@
+{
+  "cafeId": "여기에 카페 ID 숫자 (예: 12345678)",
+  "companyName": "업체명",
+  "phone": "대표번호 (예: 1234-5678)",
+  "ai": {
+    "provider": "claude",
+    "model": ""
+  }
+}

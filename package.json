@@ -1,0 +1,20 @@
+{
+  "name": "cafe-construction-poster",
+  "version": "1.0.0",
+  "private": true,
+  "description": "네이버 카페 '공사중 현장' 글 자동 작성 도구 — AI(Claude 또는 ChatGPT/Codex)가 초안을 쓰고 카페 임시등록까지 해 준다",
+  "license": "MIT",
+  "type": "commonjs",
+  "main": "server.js",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.js",
+    "check": "node scripts/check.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "multer": "^2.3.0",
+    "playwright": "^1.49.0",
+    "sharp": "^0.35.4"
+  }
+}

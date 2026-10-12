@@ -1,0 +1,11 @@
+node_modules/
+auth/
+uploads/
+*.log
+
+# 회사 정보·고객 자료 — 절대 올리지 않는다
+cafe.config.json
+cafe/data/*
+!cafe/data/.gitkeep
+cafe/assets/*
+!cafe/assets/.gitkeep

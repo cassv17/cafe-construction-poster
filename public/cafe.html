@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>카페 공사중 자동 발행</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #fff; --text: #1f2430; --muted: #6b7280; --line: #e5e7eb;
+    --accent: #f59e0b; --accent-text: #fff; --ok: #16a34a; --bad: #dc2626; --warn: #d97706;
+    --before: #FFAF26; --during: #D66F31; --input: #fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14161b; --card: #1c1f27; --text: #e6e8ee; --muted: #9aa3b2; --line: #2a2e38; --input: #14161b; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 15px/1.6 'Pretendard', 'Malgun Gothic', system-ui, sans-serif; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 12px 16px 120px; }
+  h1 { font-size: 18px; margin: 8px 0 12px; }
+  h2 { font-size: 15px; margin: 0 0 10px; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 12px; position: sticky; top: 0; background: var(--bg); padding: 8px 0; z-index: 5; }
+  .tabs button { flex: 1; padding: 10px 6px; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 10px; font: inherit; cursor: pointer; }
+  .tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 700; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  input[type=text], input[type=url], select, textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--input); color: var(--text); font: inherit;
+  }
+  textarea { min-height: 90px; resize: vertical; line-height: 1.7; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .row > * { flex: 1; min-width: 120px; }
+  button.btn { padding: 11px 14px; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 10px; font: inherit; cursor: pointer; }
+  button.btn:disabled { opacity: .5; cursor: default; }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 700; }
+  button.danger { color: var(--bad); }
+  button.small { padding: 6px 10px; font-size: 13px; border-radius: 8px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .badge { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; color: #fff; }
+  .b-before { background: var(--before); } .b-during { background: var(--during); }
+  .toast { position: fixed; left: 12px; right: 12px; bottom: 84px; max-width: 520px; margin: 0 auto; background: #15803d; color: #fff; padding: 14px 16px; border-radius: 10px; z-index: 20; box-shadow: 0 6px 24px rgba(0,0,0,.25); cursor: pointer; }
+  .toast.bad { background: #b91c1c; }
+  .toast div { margin-top: 4px; font-size: 14px; word-break: keep-all; }
+  .b-saved { background: #0e7490; }
+  .b-stage { background: var(--muted); } .b-drafted { background: #2563eb; } .b-published { background: var(--ok); } .b-generating { background: var(--warn); }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+  .chip { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); font-size: 13px; background: var(--card); }
+  .chip.ok { border-color: var(--ok); color: var(--ok); } .chip.bad { border-color: var(--bad); color: var(--bad); }
+  .list-item { display: flex; gap: 10px; align-items: center; padding: 12px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; background: var(--card); cursor: pointer; }
+  .list-item .t { flex: 1; min-width: 0; } .list-item .t b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .radio { display: flex; gap: 8px; } .radio label { flex: 1; margin: 0; padding: 12px; border: 2px solid var(--line); border-radius: 10px; text-align: center; color: var(--text); cursor: pointer; font-size: 15px; }
+  .radio input { display: none; } .radio input:checked + span { font-weight: 700; }
+  .radio label:has(input:checked) { border-color: var(--accent); background: rgba(245,158,11,.12); }
+  .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+  .thumb { position: relative; border-radius: 8px; overflow: hidden; background: var(--line); aspect-ratio: 1; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb .nm { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; background: rgba(0,0,0,.55); color: #fff; padding: 1px 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .thumb .mv { position: absolute; top: 3px; display: flex; gap: 3px; right: 3px; }
+  .thumb .mv button { border: 0; background: rgba(0,0,0,.55); color: #fff; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .thumb.cover { outline: 3px solid var(--accent); }
+  .thumb .pickcover { position: absolute; top: 3px; left: 3px; border: 0; background: rgba(0,0,0,.55); color: #fff; font-size: 11px; padding: 3px 6px; border-radius: 6px; cursor: pointer; }
+  .thumb.cover .pickcover { background: var(--accent); }
+  .cover-box img { width: 100%; max-width: 420px; border-radius: 8px; display: block; border: 1px solid var(--line); }
+  .log { background: #0f172a; color: #cbd5e1; font: 12px/1.6 ui-monospace, Consolas, monospace; border-radius: 8px; padding: 10px; max-height: 190px; overflow: auto; white-space: pre-wrap; margin: 10px 0; }
+  .log .error { color: #fca5a5; } .log .warn { color: #fcd34d; } .log .success { color: #86efac; }
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-top: 1px solid var(--line); padding: 10px 16px; z-index: 6; }
+  .bar .in { max-width: 760px; margin: 0 auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .bar .in > * { flex: 1; min-width: 130px; }
+  .saved { font-size: 12px; color: var(--muted); flex: 0 0 auto !important; min-width: 0 !important; }
+  .prev { border: 1px dashed var(--line); border-radius: 10px; padding: 12px; }
+  .prev p { margin: 0 0 8px; white-space: pre-wrap; }
+  .prev .ph { display: inline-block; width: 64px; height: 64px; margin: 0 4px 6px 0; border-radius: 6px; background: var(--line) center/cover; }
+  .prev .tag { display: block; margin: 8px 0; padding: 6px 10px; background: rgba(245,158,11,.14); border-radius: 8px; font-size: 13px; }
+  .err { color: var(--bad); font-size: 13px; margin-top: 6px; }
+  .drop { border: 2px dashed var(--line); border-radius: 14px; min-height: 150px; padding: 26px 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; cursor: pointer; background: var(--bg); transition: background .12s, border-color .12s; }
+  .drop:hover { border-color: var(--accent); }
+  .drop.over { border-color: var(--accent); background: rgba(245,158,11,.14); }
+  .drop .big { font-size: 16px; font-weight: 700; }
+  .drop.has { min-height: 84px; padding: 14px; }
+  .drop input { display: none; }
+  .kindpick { display: flex; gap: 10px; }
+  .kind { flex: 1; border: 3px solid var(--line); border-radius: 14px; padding: 16px 10px; text-align: center; cursor: pointer; display: flex; flex-direction: column; gap: 2px; margin: 0; color: var(--text); font-size: 15px; }
+  .kind input { display: none; } .kind b { font-size: 20px; } .kind span { font-size: 12px; color: var(--muted); }
+  .kind.kb:has(input:checked) { border-color: var(--before); background: rgba(255,175,38,.18); }
+  .kind.kd:has(input:checked) { border-color: var(--during); background: rgba(214,111,49,.18); }
+  .kind.need { border-color: var(--bad); }
+  .pcard { display: block; border: 2px solid var(--line); border-radius: 12px; padding: 10px 12px; margin: 6px 0; cursor: pointer; color: var(--text); font-size: 15px; }
+  .pcard input { margin-right: 8px; } .pcard b { font-size: 16px; } .pcard span { display: block; font-size: 13px; color: var(--muted); margin-left: 24px; }
+  .pcard:has(input:checked) { border-color: var(--accent); background: rgba(245,158,11,.12); }
+  .pcard em { font-style: normal; font-size: 11px; background: var(--ok); color: #fff; padding: 1px 7px; border-radius: 999px; margin-left: 6px; }
+  .tagchip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; background: rgba(245,158,11,.16); font-size: 14px; margin: 3px 4px 3px 0; }
+  .tagchip button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 15px; padding: 0 2px; }
+  .tagsug { display: inline-block; padding: 4px 10px; border-radius: 999px; border: 1px dashed var(--line); font-size: 13px; margin: 3px 4px 3px 0; cursor: pointer; background: transparent; color: var(--text); }
+  .locked { opacity: .4; pointer-events: none; filter: grayscale(.4); }
+  .okbox { border: 2px solid var(--ok); border-radius: 12px; padding: 10px 12px; margin-top: 10px; background: rgba(22,163,74,.08); }
+  .okbox b { font-size: 16px; } .okbox span { display: block; font-size: 13px; color: var(--muted); }
+  .stage { position: relative; width: 100%; max-width: 380px; aspect-ratio: 2206 / 1996; background: #ddd no-repeat; border-radius: 6px; overflow: hidden; cursor: grab; touch-action: none; border: 1px solid var(--line); user-select: none; }
+  .stage.drag { cursor: grabbing; }
+  .busy { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.5); color: #fff; font-weight: 700; border-radius: 8px; text-align: center; padding: 8px; }
+  .drop.smalldrop { min-height: 70px; padding: 12px; margin-top: 10px; }
+  .hide { display: none !important; }
+  progress { width: 100%; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  details pre { white-space: pre-wrap; font: 13px/1.6 inherit; background: var(--bg); padding: 10px; border-radius: 8px; max-height: 320px; overflow: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; } td, th { padding: 6px 4px; text-align: left; border-bottom: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>카페 공사중 자동 발행</h1>
+  <div class="chips" id="status"></div>
+  <div id="setupWarn" class="card" style="display:none;border-color:#e0a000;background:#fff8e1"></div>
+
+  <nav class="tabs" role="tablist">
+    <button data-tab="jobs" aria-selected="true">작업</button>
+    <button data-tab="new" aria-selected="false">새 작업</button>
+    <button data-tab="settings" aria-selected="false">설정</button>
+  </nav>
+
+  <!-- 작업 목록 -->
+  <section id="v-jobs"><div id="jobList"></div></section>
+
+  <!-- 새 작업 -->
+  <section id="v-new" class="hide">
+    <div class="card">
+      <h2>1. 현장 정보</h2>
+      <label style="margin-top:0">어떤 글인가요? <b style="color:var(--bad)">(꼭 골라 주세요)</b></label>
+      <div class="kindpick" id="kindPick">
+        <label class="kind kb"><input type="radio" name="kind" value="before"><b>공사전</b><span>공사 시작 전 모습</span></label>
+        <label class="kind kd"><input type="radio" name="kind" value="during"><b>공사중</b><span>공사가 진행 중인 모습</span></label>
+      </div>
+      <div class="muted" style="margin-top:4px">표지 디자인(배지 문구·색)이 이 선택에 따라 달라집니다.</div>
+      <div class="row">
+        <div><label>시/도</label>
+          <select id="f-sido"><option>서울</option><option>경기</option><option>인천</option><option>부산</option><option>대구</option><option>대전</option><option>세종</option><option>광주</option><option>울산</option><option>강원</option><option>충북</option><option>충남</option><option>전북</option><option>전남</option><option>경북</option><option>경남</option><option>제주</option></select></div>
+        <div><label>구/시</label><input type="text" id="f-gu" placeholder="마포구"></div>
+        <div><label>동</label><input type="text" id="f-dong" placeholder="공덕동"></div>
+      </div>
+      <div class="row">
+        <div style="flex:2"><label>아파트명</label><input type="text" id="f-apt" placeholder="래미안공덕3차"></div>
+        <div><label>평수(숫자)</label><input type="text" id="f-size" inputmode="numeric" placeholder="32"></div>
+      </div>
+      <button class="btn" id="btnPlace" style="margin-top:10px">현장 확인 (네이버 지도)</button>
+      <span class="muted" id="placeHint" style="margin-left:6px">아파트명을 쓰고 칸을 벗어나면 자동으로 찾습니다.</span>
+      <div id="placeBox" class="hide" style="margin-top:8px"></div>
+      <label>공사 메모 (진행 중인 공정, 특이사항 — 글의 사실 근거로만 쓰입니다)</label>
+      <textarea id="f-memo" placeholder="예) 거실 베란다 확장, 전기 배선, 욕실 전체 철거 완료"></textarea>
+    </div>
+    <div class="card locked" id="photoCard">
+      <h2>2. 사진 <span class="muted" id="photoCount"></span> <span class="muted" id="photoLockNote">— 먼저 위에서 현장을 확인해 주세요</span></h2>
+      <label class="drop" id="dropPhotos">
+        <input type="file" id="f-photos" accept="image/*" multiple>
+        <span class="big">여기로 사진을 끌어다 놓으세요</span>
+        <span class="muted">또는 이 칸 아무 곳이나 눌러서 고르기 · 폴더째 놓아도 됩니다 · 계속 추가됩니다</span>
+      </label>
+      <p class="muted">파일명 순서대로 글에 들어갑니다. 화면 확인용으로는 작게 줄여 보고, 발행할 때는 원본 크기 그대로 올립니다.</p>
+      <div class="row" id="photoTools" style="margin-bottom:8px"><button class="btn small hide" id="photoClear" style="flex:0">사진 모두 지우기</button></div>
+      <div class="thumbs" id="photoPrev"></div>
+      <label>현장 영상 (선택)</label>
+      <label class="drop" id="dropVideo">
+        <input type="file" id="f-video" accept="video/*">
+        <span class="big" id="videoBig">여기로 영상을 끌어다 놓으세요</span>
+        <span class="muted" id="videoSub">또는 이 칸 아무 곳이나 눌러서 고르기 · 1개</span>
+      </label>
+    </div>
+    <button class="btn primary" id="btnCreate" style="width:100%">글 만들기 시작</button>
+    <div id="createProg" class="hide" style="margin-top:10px"><progress id="createBar" max="100" value="0"></progress><div class="muted" id="createTxt"></div></div>
+    <div class="err" id="createErr"></div>
+  </section>
+
+  <!-- 작업 편집 -->
+  <section id="v-job" class="hide"></section>
+
+  <!-- 설정 -->
+  <section id="v-settings" class="hide">
+    <div class="card">
+      <h2>카페 로그인 (앱 전용 크롬)</h2>
+      <div class="muted" id="chromeTxt"></div>
+      <p class="muted">처음 한 번만 열린 크롬 창에서 카페 계정으로 직접 로그인하세요. 이후에는 로그인이 유지됩니다. 비밀번호는 이 앱이 다루지 않습니다.</p>
+      <button class="btn primary" id="btnChrome">로그인 창 열기</button>
+    </div>
+    <div class="card">
+      <h2>말투 기준 글</h2>
+      <p class="muted">여기 등록한 글은 고정으로 남습니다. 새 링크를 추가하면 그 글만 분석해서 기존 말투에 합칩니다.</p>
+      <div id="styleList"></div>
+      <div class="row" style="margin-top:8px">
+        <input type="url" id="styleUrl" placeholder="카페 글 주소 붙여넣기" style="flex:3">
+        <button class="btn primary" id="btnStyleAdd">추가·분석</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="btnStyleRebuild">전체를 처음부터 다시 분석</button>
+      </div>
+      <div class="log hide" id="styleLog"></div>
+      <details style="margin-top:8px"><summary>현재 말투 지침 보기</summary><pre id="styleGuide"></pre></details>
+    </div>
+    <div class="card">
+      <h2>지역 → 게시판</h2>
+      <div id="boardTable"></div>
+      <div class="row" style="margin-top:8px"><button class="btn" id="btnBoards">카페에서 게시판 불러오기</button></div>
+      <div class="log hide" id="boardLog"></div>
+    </div>
+    <div class="card">
+      <h2>글 마무리 정보</h2>
+      <label>대표번호</label><input type="text" id="s-phone">
+      <label>홈페이지 견적문의 주소 (비워 두면 글에 넣지 않습니다)</label><input type="url" id="s-home" placeholder="https://">
+      <button class="btn primary" id="btnSettings" style="margin-top:10px">저장</button>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var API = '/api/cafe';
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var KIND = { before: '공사전', during: '공사중' };
+  var STAGE = { input: '초안 전', generating: '만드는 중', drafted: '초안 완성', saved: '카페 임시저장됨', published: '발행 완료' };
+
+  function api(path, opts) {
+    opts = opts || {};
+    var init = { method: opts.method || 'GET', headers: {} };
+    if (opts.body !== undefined) { init.headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(opts.body); }
+    return fetch(API + path, init).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok) throw new Error(j.error || ('요청 실패 (' + r.status + ')'));
+        return j;
+      });
+    });
+  }
+
+  /* ───────── 탭 ───────── */
+  var view = 'jobs', currentId = null;
+  function show(name) {
+    view = name;
+    ['jobs', 'new', 'job', 'settings'].forEach(function (n) { $('#v-' + n).classList.toggle('hide', n !== name); });
+    document.querySelectorAll('.tabs button').forEach(function (b) {
+      b.setAttribute('aria-selected', String(b.dataset.tab === name || (name === 'job' && b.dataset.tab === 'jobs')));
+    });
+    if (name === 'jobs') loadJobs();
+    if (name === 'new') api('/places/warm', { method: 'POST' }).catch(function () {});
+    if (name === 'settings') loadSettings();
+    window.scrollTo(0, 0);
+  }
+  document.querySelectorAll('.tabs button').forEach(function (b) { b.onclick = function () { stopPoll(); show(b.dataset.tab); }; });
+
+  /* ───────── 상태 ───────── */
+  function loadStatus() {
+    return api('/status').then(function (s) {
+      var c = s.chrome || {};
+      var h = '';
+      h += '<span class="chip ' + (c.loggedIn ? 'ok' : 'bad') + '">' + (c.loggedIn ? '카페 로그인됨' : '로그인 필요') + '</span>';
+      h += '<span class="chip">말투 기준 글 ' + s.style.links + '건</span>';
+      if (s.setup) h += '<span class="chip" title="cafe.config.json 의 ai.provider">AI: ' + (s.setup.ai === 'codex' ? 'ChatGPT(Codex)' : 'Claude') + '</span>';
+      showSetup(s.setup);
+      // 브라우저 알림이 아직 허용되지 않았으면 켜는 버튼을 보여 준다 (윈도우 알림은 서버가 따로 띄운다)
+      if (window.Notification && Notification.permission !== 'granted') {
+        h += Notification.permission === 'denied'
+          ? '<span class="chip bad" title="주소창 왼쪽 자물쇠에서 알림을 허용해 주세요">브라우저 알림 차단됨</span>'
+          : '<button class="chip bad" id="btnNotif" style="cursor:pointer">🔔 브라우저 알림 켜기</button>';
+      }
+      $('#status').innerHTML = h;
+      var bn = $('#btnNotif'); if (bn) bn.onclick = function () { Notification.requestPermission().then(loadStatus); };
+      return s;
+    }).catch(function () {});
+  }
+
+  /* ───────── 작업 목록 ───────── */
+  function loadJobs() {
+    loadStatus();
+    api('/jobs').then(function (list) {
+      if (!list.length) { $('#jobList').innerHTML = '<div class="card muted">아직 작업이 없습니다. [새 작업]에서 시작하세요.</div>'; return; }
+      var done = list.filter(isDone);
+      $('#jobList').innerHTML = (done.length ? '<div style="text-align:right;margin-bottom:8px"><button class="btn small danger" id="jobsClearDone" style="flex:0 0 auto">완료된 작업 ' + done.length + '건 모두 제거</button></div>' : '') +
+        list.map(function (j) {
+          return '<div class="list-item" data-id="' + j.id + '"><div class="t"><b>' + esc(j.title) + '</b><span class="muted">' +
+            new Date(j.createdAt).toLocaleString('ko-KR') + ' · 사진 ' + j.photos + '장</span></div>' +
+            '<span class="badge b-' + j.분류 + '">' + KIND[j.분류] + '</span>' +
+            '<span class="badge b-' + (j.stage === 'input' ? 'stage' : j.stage) + '">' + (STAGE[j.stage] || j.stage) + '</span>' +
+            (isDone(j) ? '<button class="btn small danger jobDel" data-id="' + j.id + '" style="flex:0 0 auto">제거</button>' : '') + '</div>';
+        }).join('');
+      document.querySelectorAll('#jobList .list-item').forEach(function (el) { el.onclick = function () { openJob(el.dataset.id); }; });
+      document.querySelectorAll('#jobList .jobDel').forEach(function (b) {
+        b.onclick = function (e) {
+          e.stopPropagation();
+          if (!confirm('이 작업을 목록에서 제거할까요?\n사진·초안이 지워집니다. (카페에 임시저장된 글은 그대로 남습니다)')) return;
+          api('/jobs/' + b.dataset.id, { method: 'DELETE' }).then(loadJobs).catch(function (er) { alert(er.message); });
+        };
+      });
+      var all = $('#jobsClearDone');
+      if (all) all.onclick = function () {
+        if (!confirm('완료된 작업 ' + done.length + '건을 모두 제거할까요?\n사진·초안이 지워집니다. (카페에 임시저장된 글은 그대로 남습니다)')) return;
+        Promise.all(done.map(function (j) { return api('/jobs/' + j.id, { method: 'DELETE' }); })).then(loadJobs).catch(function (er) { alert(er.message); loadJobs(); });
+      };
+    });
+  }
+  /** 카페에 임시저장했거나 발행까지 끝난 작업 */
+  function isDone(j) { return j.stage === 'saved' || j.stage === 'published'; }
+
+  /* ───────── 새 작업 ───────── */
+  var picked = [], pickedVideo = null;
+  var natural = function (a, b) { return a.name.localeCompare(b.name, 'ko', { numeric: true }); };
+
+  function drawPicked() {
+    picked.sort(natural);
+    $('#photoCount').textContent = picked.length ? '(' + picked.length + '장)' : '';
+    $('#photoClear').classList.toggle('hide', !picked.length);
+    $('#dropPhotos').classList.toggle('has', picked.length > 0);
+    $('#photoPrev').innerHTML = '';
+    picked.slice(0, 80).forEach(function (f) {
+      var d = document.createElement('div'); d.className = 'thumb';
+      var img = document.createElement('img'); img.loading = 'lazy'; img.src = URL.createObjectURL(f);
+      var nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = f.name;
+      d.appendChild(img); d.appendChild(nm); $('#photoPrev').appendChild(d);
+    });
+  }
+  function addPhotos(files) {
+    files.forEach(function (f) {
+      if (f.type.indexOf('image/') !== 0 && !/\.(jpe?g|png|webp|heic|gif)$/i.test(f.name)) return;
+      if (!picked.some(function (p) { return p.name === f.name && p.size === f.size; })) picked.push(f);
+    });
+    drawPicked();
+  }
+  function setVideo(f) {
+    pickedVideo = f || null;
+    $('#videoBig').textContent = f ? f.name : '여기로 영상을 끌어다 놓으세요';
+    $('#videoSub').textContent = f ? (f.size / 1048576).toFixed(0) + 'MB · 다른 영상을 놓으면 바뀝니다' : '또는 이 칸 아무 곳이나 눌러서 고르기 · 1개';
+    $('#dropVideo').classList.toggle('has', !!f);
+  }
+
+  /** 드롭된 항목에서 파일을 꺼낸다. 폴더면 안쪽까지 훑는다. */
+  function filesFromDrop(dt) {
+    var items = dt.items ? Array.prototype.slice.call(dt.items) : [];
+    var entries = items.map(function (i) { return i.webkitGetAsEntry && i.webkitGetAsEntry(); }).filter(Boolean);
+    if (!entries.length) return Promise.resolve(Array.prototype.slice.call(dt.files));
+    function walk(entry) {
+      if (entry.isFile) return new Promise(function (res) { entry.file(function (f) { res([f]); }, function () { res([]); }); });
+      return new Promise(function (res) {
+        var reader = entry.createReader(), all = [];
+        (function read() {
+          reader.readEntries(function (batch) {
+            if (!batch.length) { Promise.all(all.map(walk)).then(function (r) { res([].concat.apply([], r)); }); return; }
+            all = all.concat(Array.prototype.slice.call(batch)); read();
+          }, function () { res([]); });
+        })();
+      });
+    }
+    return Promise.all(entries.map(walk)).then(function (r) { return [].concat.apply([], r); });
+  }
+
+  function dropZone(el, onFiles) {
+    ['dragenter', 'dragover'].forEach(function (ev) { el.addEventListener(ev, function (e) { e.preventDefault(); el.classList.add('over'); }); });
+    ['dragleave', 'dragend'].forEach(function (ev) { el.addEventListener(ev, function (e) { if (!el.contains(e.relatedTarget)) el.classList.remove('over'); }); });
+    el.addEventListener('drop', function (e) {
+      e.preventDefault(); el.classList.remove('over');
+      filesFromDrop(e.dataTransfer).then(onFiles);
+    });
+  }
+  dropZone($('#dropPhotos'), addPhotos);
+  dropZone($('#dropVideo'), function (files) { var v = files.filter(function (f) { return f.type.indexOf('video/') === 0 || /\.(mp4|mov|m4v|avi|mkv|wmv)$/i.test(f.name); })[0]; if (v) setVideo(v); });
+  // 칸 밖에 놓쳤을 때 브라우저가 파일을 열어 버리지 않게 막는다.
+  ['dragover', 'drop'].forEach(function (ev) { window.addEventListener(ev, function (e) { e.preventDefault(); }); });
+
+  $('#f-photos').onchange = function (e) { addPhotos(Array.prototype.slice.call(e.target.files)); e.target.value = ''; };
+  $('#f-video').onchange = function (e) { if (e.target.files[0]) setVideo(e.target.files[0]); e.target.value = ''; };
+  $('#photoClear').onclick = function (e) { e.preventDefault(); picked = []; drawPicked(); };
+
+  /* 순서: ① 현장 정보 → ② 현장 확인(후보 선택) → ③ 사진·영상 → ④ 글 만들기 */
+  var confirmed = null; // { name, address } (지도에서 고른 현장) 또는 { name, address: '' } (목록에 없어서 직접)
+  var placeSeq = 0;     // 늦게 도착한 옛 검색 결과가 새 결과를 덮지 않게 한다
+
+  function formError() {
+    var kind = document.querySelector('input[name=kind]:checked');
+    document.querySelectorAll('#kindPick .kind').forEach(function (k) { k.classList.toggle('need', !kind); });
+    if (!kind) return '공사전 / 공사중 중 하나를 꼭 골라 주세요.';
+    if (!$('#f-gu').value.trim() || !$('#f-apt').value.trim()) return '구/시와 아파트명은 꼭 입력해 주세요.';
+    if (!confirmed) return '먼저 [현장 확인]에서 현장을 선택해 주세요.';
+    if (!picked.length) return '사진을 1장 이상 골라 주세요.';
+    return '';
+  }
+  function setBusy(on, text) {
+    $('#btnCreate').disabled = on;
+    $('#createProg').classList.toggle('hide', !on);
+    $('#createBar').removeAttribute('value');
+    $('#createTxt').textContent = text || '';
+  }
+  function lockPhotos(locked) {
+    $('#photoCard').classList.toggle('locked', locked);
+    $('#photoLockNote').classList.toggle('hide', !locked);
+  }
+  /** 위치·이름이 바뀌면 이전 확인은 무효다. 사진 칸을 다시 잠근다. */
+  function invalidate() {
+    if (!confirmed) return;
+    confirmed = null; lockPhotos(true);
+    $('#placeHint').textContent = '현장 정보가 바뀌었습니다. 다시 확인해 주세요.';
+    var ok = $('#placeOk'); if (ok) ok.remove();
+  }
+  ['f-sido', 'f-gu', 'f-dong'].forEach(function (id) { $('#' + id).addEventListener('change', invalidate); });
+  $('#f-apt').addEventListener('input', function () { invalidate(); });
+
+  function searchPlaces() {
+    var apt = $('#f-apt').value.trim();
+    if (!$('#f-gu').value.trim() || !apt) { $('#placeHint').textContent = '구/시와 아파트명을 먼저 입력해 주세요.'; return; }
+    var seq = ++placeSeq; confirmed = null; lockPhotos(true);
+    $('#placeBox').classList.remove('hide'); $('#placeBox').innerHTML = '<div class="muted">네이버 지도에서 찾는 중…</div>';
+    $('#placeHint').textContent = '';
+    api('/places', { method: 'POST', body: { sido: $('#f-sido').value, gu: $('#f-gu').value, dong: $('#f-dong').value, apt: apt } })
+      .then(function (r) { if (seq === placeSeq) showPlaces(r.candidates || []); })
+      .catch(function (e) { if (seq === placeSeq) showPlaces([], e.message); });
+  }
+  $('#btnPlace').onclick = searchPlaces;
+  // 아파트명 칸을 벗어나거나 Enter 를 치면 바로 찾는다. 평수·메모를 쓰는 동안 후보가 준비된다.
+  $('#f-apt').addEventListener('change', function () { if ($('#f-gu').value.trim() && this.value.trim()) searchPlaces(); });
+
+  function showPlaces(cands, problem) {
+    var typed = $('#f-apt').value.trim();
+    var h = '<div>입력하신 이름: <b>' + esc(typed) + '</b></div>';
+    if (problem) {
+      // 검색 자체를 못 한 경우다. '검색된 현장이 없습니다' 로 보이면 이름 문제로 오해하므로 따로 알린다.
+      h += '<div class="err">현장 검색을 하지 못했습니다 (입력한 이름 문제가 아닙니다) — ' + esc(problem) + '</div>';
+      if (/로그인|운영진/.test(problem)) h += '<button class="btn small" id="placeLogin" style="margin:6px 0">로그인 창 열기</button> <button class="btn small" id="placeRetry">다시 검색</button>';
+    } else {
+      h += '<div class="muted" style="margin:4px 0 8px">' + (cands.length ? '이름이 틀렸을 수 있어 비슷한 순으로 보여 드립니다. 맞는 현장을 골라 주세요.' : '검색된 현장이 없습니다. 이름을 다시 확인하거나 아래 [목록에 없어요]로 진행하세요.') + '</div>';
+    }
+    cands.forEach(function (c, i) {
+      h += '<label class="pcard"><input type="radio" name="pc" value="' + i + '"><b>' + esc(c.name) + '</b>' + (i === 0 && c.score >= 0.9 ? '<em>가장 비슷함</em>' : '') + (c.regionMatch ? '' : '<em style="background:var(--muted)">다른 지역</em>') + '<span>' + esc(c.address) + '</span></label>';
+    });
+    h += '<label class="pcard"><input type="radio" name="pc" value="none"><b>목록에 없어요</b><span>입력한 이름 그대로 진행합니다 (지도는 이름으로 찾습니다)</span></label>' +
+      '<label>글에 쓸 아파트명 <span class="muted">(제목·표지·본문·태그에 이 이름이 쓰입니다. 필요하면 고치세요)</span></label><input type="text" id="placeName" value="' + esc(typed) + '">' +
+      '<div class="row" style="margin-top:10px"><button class="btn primary" id="placeGo" disabled>이 현장으로 확인</button></div>';
+    var box = $('#placeBox'); box.innerHTML = h;
+    var chosen = null;
+    box.querySelectorAll('input[name=pc]').forEach(function (r) {
+      r.onchange = function () {
+        if (r.value === 'none') { chosen = null; $('#placeName').value = typed; }
+        else { chosen = cands[Number(r.value)]; $('#placeName').value = chosen.name.replace(/아파트$/, ''); }
+        $('#placeGo').disabled = false;
+      };
+    });
+    var pl = $('#placeLogin'); if (pl) pl.onclick = function () { pl.disabled = true; api('/chrome/open', { method: 'POST' }).then(function () { pl.textContent = '로그인 창을 열었습니다 — 로그인 후 [다시 검색]'; }).catch(function (e) { pl.textContent = e.message; }); };
+    var pr = $('#placeRetry'); if (pr) pr.onclick = searchPlaces;
+    $('#placeGo').onclick = function () {
+      var name = $('#placeName').value.trim() || typed;
+      confirmed = { name: name, address: chosen ? chosen.address : '', place: chosen };
+      $('#f-apt').value = name;
+      box.classList.add('hide');
+      var ok = document.createElement('div'); ok.className = 'okbox'; ok.id = 'placeOk';
+      ok.innerHTML = '<b>✔ 확인됨 — ' + esc(name) + '</b><span>' + (chosen ? esc(chosen.name) + ' · ' + esc(chosen.address) : '목록에 없는 현장 (입력한 이름 그대로)') + '</span><button class="btn small" id="placeAgain" style="margin-top:6px">다시 확인</button>';
+      box.parentNode.insertBefore(ok, box.nextSibling);
+      $('#placeAgain').onclick = function () { ok.remove(); searchPlaces(); };
+      $('#placeHint').textContent = '';
+      lockPhotos(false);
+    };
+  }
+
+  $('#btnCreate').onclick = function () {
+    $('#createErr').textContent = '';
+    var err = formError(); if (err) { $('#createErr').textContent = err; return; }
+    createJob(confirmed.name, confirmed.place);
+  };
+
+  function createJob(finalName, place) {
+    var fd = new FormData();
+    fd.append('kind', (document.querySelector('input[name=kind]:checked') || {}).value || '');
+    fd.append('sido', $('#f-sido').value); fd.append('gu', $('#f-gu').value); fd.append('dong', $('#f-dong').value);
+    fd.append('apt', finalName); fd.append('size', $('#f-size').value); fd.append('memo', $('#f-memo').value);
+    if (place) { fd.append('placeName', place.name); fd.append('placeAddress', place.address); }
+    picked.forEach(function (f) { fd.append('photos', f, f.name); });
+    if (pickedVideo) fd.append('video', pickedVideo, pickedVideo.name);
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', API + '/jobs');
+    setBusy(true, '사진 올리는 중 0%'); $('#createBar').value = 0;
+    xhr.upload.onprogress = function (e) {
+      if (e.lengthComputable) { var p = Math.round(e.loaded / e.total * 100); $('#createBar').value = p; $('#createTxt').textContent = '사진·영상 올리는 중 ' + p + '%'; }
+    };
+    xhr.onload = function () {
+      setBusy(false);
+      var j = {}; try { j = JSON.parse(xhr.responseText); } catch (e) {}
+      if (xhr.status !== 200) { $('#createErr').textContent = j.error || '작업을 만들지 못했습니다.'; return; }
+      // 만들자마자 글 만들기를 시작한다.
+      api('/jobs/' + j.id + '/generate', { method: 'POST' }).catch(function () {}).then(function () { openJob(j.id); });
+    };
+    xhr.onerror = function () { setBusy(false); $('#createErr').textContent = '업로드에 실패했습니다.'; };
+    xhr.send(fd);
+  }
+
+  /* ───────── 작업 편집 ───────── */
+  var job = null, polling = null, logAfter = 0, saveTimer = null, dirty = false, boardsData = null;
+
+  function stopPoll() { if (polling) { clearInterval(polling); polling = null; } }
+  var photoUrl = function (n, small) { return API + '/jobs/' + job.id + '/photo/' + encodeURIComponent(n) + (small ? '?small=1' : ''); };
+
+  function openJob(id) {
+    currentId = id; stopPoll(); logAfter = 0; dirty = false;
+    show('job');
+    $('#v-job').innerHTML = '<div class="card muted">불러오는 중…</div>';
+    Promise.all([api('/jobs/' + id), api('/boards')]).then(function (r) { job = r[0]; boardsData = r[1]; renderJob(); if (job.running) startPoll('/log/' + job.id, 'job'); });
+  }
+
+  function boardOptions() {
+    var map = {};
+    Object.keys(boardsData.byRegion || {}).forEach(function (k) { var b = boardsData.byRegion[k]; map[b.menuId] = b.name; });
+    (boardsData.all || []).forEach(function (b) { map[b.menuId] = b.name; });
+    if (job.board) map[job.board.menuId] = job.board.name;
+    return Object.keys(map).map(function (id) { return { menuId: Number(id), name: map[id] }; });
+  }
+
+  function renderJob() {
+    var j = job, d = j.draft;
+    var h = '';
+    h += '<div class="row" style="margin-bottom:10px"><button class="btn small" id="jBack" style="flex:0">← 목록</button>' +
+      '<div style="flex:3"><span class="badge b-' + j.분류 + '">' + KIND[j.분류] + '</span> <span class="badge b-' + (j.stage === 'input' ? 'stage' : j.stage) + '">' + (STAGE[j.stage] || j.stage) + '</span> ' +
+      '<span class="muted">' + esc([j.시도, j.구, j.동, j.아파트명].filter(Boolean).join(' ')) + (j.평수 ? ' ' + esc(j.평수) + '평' : '') + ' · 사진 ' + j.photos.length + '장</span></div>' +
+      '<button class="btn small danger" id="jDel" style="flex:0">삭제</button></div>';
+    h += '<div id="jErr" class="err">' + esc(j.error || '') + '</div>';
+    h += '<div class="log' + (j.running ? '' : ' hide') + '" id="jLog"></div>';
+    h += infoCard(j);
+
+    if (!d) {
+      h += '<div class="card"><h2>아직 초안이 없습니다</h2><p class="muted">사진을 보고 말투 지침대로 글을 씁니다. 1~3분 걸립니다.</p>' +
+        '<button class="btn primary" id="jGen"' + (j.running ? ' disabled' : '') + '>글 만들기</button></div>';
+      $('#v-job').innerHTML = h; bindJob(); return;
+    }
+
+    // 제목
+    h += '<div class="card"><h2>제목</h2><div class="chips" id="titleChips">' +
+      (j.titles || []).map(function (t, i) { return '<button class="chip" data-i="' + i + '" style="cursor:pointer;text-align:left">' + esc(t) + '</button>'; }).join('') + '</div>' +
+      '<input type="text" id="jTitle" value="' + esc(j.title) + '"><div class="muted" style="margin-top:4px">후보를 누르면 입력칸에 들어갑니다. 직접 고쳐도 됩니다.</div>' +
+      '<button class="btn small" id="jTitles" style="margin-top:6px">후보 다시 만들기</button></div>';
+
+    // 표지
+    h += '<div class="card" id="coverCard"><h2>표지</h2><div class="row">' +
+      '<div style="flex:1 1 240px"><div class="cover-box" style="position:relative"><img id="coverImg" src="' + API + '/jobs/' + j.id + '/cover.jpg?t=' + ((j.cover && j.cover.at) || 0) + '" alt="표지"><div id="coverBusy" class="busy hide">표지 만드는 중…</div></div></div>' +
+      '<div style="flex:1 1 260px"><div class="muted">사진 위치·크기 — 사진을 마우스로 끌어 옮기고, 아래 막대로 확대하세요. 손을 떼면 자동으로 표지에 적용됩니다.</div>' +
+      '<div id="coverStage" class="stage" style="margin-top:6px"></div>' +
+      '<div class="row" style="margin-top:8px;align-items:center"><span class="muted" style="flex:0 0 auto;min-width:0">확대</span><input type="range" id="coverZoom" min="100" max="300" value="100" style="flex:3"><button class="btn small" id="coverReset" style="flex:0 0 auto;min-width:0">원래대로</button></div></div></div>' +
+      '<div class="muted" style="margin-top:12px">표지에 쓸 사진을 눌러 고르세요</div>' +
+      '<div class="thumbs" id="coverPick" style="margin-top:6px">' + j.photos.map(function (n) {
+        return '<div class="thumb' + (j.cover && j.cover.photo === n ? ' cover' : '') + '" data-n="' + esc(n) + '"><img loading="lazy" src="' + photoUrl(n, true) + '"><div class="nm">' + esc(n) + '</div></div>';
+      }).join('') + '</div>' +
+      '<label class="drop smalldrop" id="coverDrop"><input type="file" id="coverFile" accept="image/*"><span class="big">표지용 사진 파일 올리기</span><span class="muted">끌어다 놓거나 눌러서 고르기 · 올린 사진은 본문 맨 앞에도 추가됩니다</span></label></div>';
+
+    // 본문
+    h += '<div class="card"><h2>본문</h2><label>소개글</label><textarea id="dIntro">' + esc(d.intro) + '</textarea>';
+    h += '<div class="muted" style="margin:8px 0">↓ 소개글 다음에 지도가 들어갑니다 (아파트명 검색)</div>';
+    d.sections.forEach(function (s, si) {
+      h += '<div class="card" style="background:var(--bg)" data-si="' + si + '"><div class="row"><div style="flex:1 1 140px"><label>공간</label><input type="text" class="sSpace" value="' + esc(s.space) + '"></div>' +
+        '<div style="flex:1 1 140px"><label>사진 배치</label>' + layoutSelect(s) + '</div></div>' +
+        '<div class="thumbs" style="margin-top:8px">' + s.photos.map(function (n, pi) {
+          return '<div class="thumb" data-si="' + si + '" data-pi="' + pi + '"><img loading="lazy" src="' + photoUrl(n, true) + '"><div class="nm">' + esc(n) + '</div>' +
+            '<div class="mv"><button class="mvL" title="앞으로">◀</button><button class="mvR" title="뒤로">▶</button></div></div>';
+        }).join('') + '</div><label>설명</label><textarea class="sText">' + esc(s.text) + '</textarea></div>';
+    });
+    h += '<label>마무리글</label><textarea id="dOutro">' + esc(d.outro) + '</textarea>' +
+      '<div class="muted" style="margin-top:6px">이어서 대표번호 줄이 자동으로 붙습니다. 설정에서 대표번호를 바꿀 수 있습니다.</div></div>';
+
+    // 해시태그
+    h += '<div class="card"><h2>해시태그</h2><div id="tagBox"></div>' +
+      '<div class="row" style="margin-top:6px"><input type="text" id="tagNew" placeholder="태그 추가 (입력 후 Enter)" style="flex:3"><button class="btn small" id="tagAdd" style="flex:0">추가</button></div>' +
+      '<div class="muted" style="margin-top:6px">카페 글 맨 아래 태그 칸에 들어갑니다. 아파트명 · 구+인테리어 · 동+인테리어 · 아파트명+인테리어에 본문 키워드 제안이 더해집니다.</div></div>';
+
+    // 게시판 · 영상
+    var opts = boardOptions();
+    h += '<div class="card"><h2>올릴 게시판</h2><select id="jBoard"><option value="">선택해 주세요</option>' + opts.map(function (b) {
+      return '<option value="' + b.menuId + '"' + (j.board && j.board.menuId === b.menuId ? ' selected' : '') + '>' + esc(b.name) + '</option>';
+    }).join('') + '</select><div class="muted" style="margin-top:4px">시/도에 맞는 "공사중 현장" 게시판이 자동으로 정해집니다. 아니면 직접 골라 주세요.</div>' +
+      '<h2 style="margin-top:14px">현장 영상 (선택)</h2><div class="muted">' + (j.video ? esc(j.video) + ' 올라가 있음' : '없음') + '</div>' +
+      '<div class="row" style="margin-top:6px"><input type="file" id="jVideo" accept="video/*" style="flex:3">' + (j.video ? '<button class="btn small danger" id="jVideoDel">영상 빼기</button>' : '') + '</div></div>';
+
+    // 발행 순서 미리보기
+    h += '<div class="card"><h2>발행 순서 미리보기</h2><div class="prev" id="jPrev"></div></div>';
+
+    $('#v-job').innerHTML = h +
+      '<div class="bar"><div class="in"><span class="saved" id="jSaved"></span>' +
+      '<button class="btn" id="jRegen"' + (j.running ? ' disabled' : '') + '>글 다시 만들기</button>' +
+      '<button class="btn primary" id="jPub"' + (j.running || j.stage === 'published' ? ' disabled' : '') + '>' + (j.stage === 'published' ? '발행 완료' : (j.stage === 'saved' ? '다시 입력 후 임시 저장' : '내용입력 후 임시 저장')) + '</button></div></div>';
+    bindJob(); renderPreview(); renderTags();
+    if (j.postUrl) $('#jErr').innerHTML = '<a href="' + esc(j.postUrl) + '" target="_blank" rel="noopener">발행된 글 열기</a>';
+  }
+
+  function bindJob() {
+    var j = job;
+    $('#jBack').onclick = function () { flush(); stopPoll(); show('jobs'); };
+    $('#jDel').onclick = function () {
+      if (!confirm('이 작업을 삭제할까요? 사진과 초안이 모두 지워집니다.')) return;
+      api('/jobs/' + j.id, { method: 'DELETE' }).then(function () { stopPoll(); show('jobs'); }).catch(function (e) { alert(e.message); });
+    };
+    var gen = $('#jGen'); if (gen) gen.onclick = function () { startGen(); };
+    bindInfo();
+    if (!j.draft) return;
+
+    document.querySelectorAll('.sLayout').forEach(function (el) { el.onchange = touch; });
+    $('#tagAdd').onclick = function () { addTag($('#tagNew').value); $('#tagNew').value = ''; };
+    $('#tagNew').onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); addTag(this.value); this.value = ''; } };
+
+    document.querySelectorAll('#titleChips .chip').forEach(function (c) {
+      c.onclick = function () { $('#jTitle').value = j.titles[Number(c.dataset.i)]; touch(); };
+    });
+    $('#jTitle').oninput = touch;
+    $('#jTitles').onclick = function () { flush().then(function () { return api('/jobs/' + j.id + '/titles', { method: 'POST' }); }).then(function (r) { job = r; renderJob(); }).catch(function (e) { alert(e.message); }); };
+
+    ['#dIntro', '#dOutro'].forEach(function (s) { $(s).oninput = touch; });
+    document.querySelectorAll('.sText, .sSpace').forEach(function (el) { el.oninput = touch; });
+    document.querySelectorAll('textarea').forEach(autoH);
+
+    initCover();
+
+    // 사진 앞뒤 이동 (묶음별 장수는 그대로, 순서만 바꾼다)
+    document.querySelectorAll('.thumb .mvL, .thumb .mvR').forEach(function (b) {
+      b.onclick = function (e) {
+        e.stopPropagation();
+        var t = b.closest('.thumb'); collect();
+        movePhoto(Number(t.dataset.si), Number(t.dataset.pi), b.classList.contains('mvL') ? -1 : 1);
+      };
+    });
+
+    $('#jBoard').onchange = function () {
+      var opt = this.options[this.selectedIndex];
+      job.board = this.value ? { menuId: Number(this.value), name: opt.textContent } : null; touch();
+    };
+    $('#jVideo').onchange = function () {
+      var f = this.files[0]; if (!f) return;
+      var fd = new FormData(); fd.append('video', f, f.name);
+      $('#jSaved').textContent = '영상 올리는 중…';
+      fetch(API + '/jobs/' + j.id + '/video', { method: 'POST', body: fd }).then(function (r) { return r.json(); })
+        .then(function (r) { if (r.error) throw new Error(r.error); job = r; renderJob(); }).catch(function (e) { alert(e.message); });
+    };
+    var vd = $('#jVideoDel'); if (vd) vd.onclick = function () { api('/jobs/' + j.id, { method: 'PUT', body: { removeVideo: true } }).then(function (r) { job = r; renderJob(); }); };
+
+    $('#jRegen').onclick = function () {
+      if (!confirm('글을 처음부터 다시 만듭니다. 지금까지 직접 고친 내용은 사라집니다. 계속할까요?')) return;
+      startGen();
+    };
+    // 임시 저장만 한다. 발행(등록)은 카페에서 사람이 직접 누른다.
+    $('#jPub').onclick = function () {
+      flush().then(function () {
+        if (!job.board) { alert('올릴 게시판을 골라 주세요.'); return; }
+        askNotify();
+        runPublish();
+      });
+    };
+  }
+
+  function autoH(t) { t.style.height = 'auto'; t.style.height = Math.min(Math.max(t.scrollHeight + 4, 90), 520) + 'px'; t.addEventListener('input', function () { autoH(t); }); }
+
+  /** 화면의 입력값을 job 에 모은다. */
+  function collect() {
+    if (!job || !job.draft) return;
+    job.title = $('#jTitle').value;
+    job.draft.intro = $('#dIntro').value;
+    job.draft.outro = $('#dOutro').value;
+    document.querySelectorAll('#v-job .card[data-si]').forEach(function (c) {
+      var s = job.draft.sections[Number(c.dataset.si)];
+      s.space = c.querySelector('.sSpace').value; s.text = c.querySelector('.sText').value;
+      var lay = c.querySelector('.sLayout'); if (lay) s.layout = lay.value;
+    });
+  }
+
+  function touch() { dirty = true; $('#jSaved').textContent = '수정 중…'; clearTimeout(saveTimer); saveTimer = setTimeout(flush, 1000); renderPreview(); }
+
+  function flush() {
+    clearTimeout(saveTimer);
+    if (!job || !job.draft || !dirty) return Promise.resolve();
+    collect(); dirty = false;
+    return api('/jobs/' + job.id, { method: 'PUT', body: { title: job.title, draft: job.draft, board: job.board || undefined, tags: job.tags } })
+      .then(function (r) { job.blocks = r.blocks; var s = $('#jSaved'); if (s) s.textContent = '저장됨'; renderPreview(); })
+      .catch(function (e) { dirty = true; var s = $('#jSaved'); if (s) s.textContent = '저장 실패: ' + e.message; });
+  }
+
+  function movePhoto(si, pi, dir) {
+    var flat = []; job.draft.sections.forEach(function (s, i) { s.photos.forEach(function (n) { flat.push({ n: n, s: i }); }); });
+    var idx = 0; for (var i = 0; i < si; i++) idx += job.draft.sections[i].photos.length; idx += pi;
+    var to = idx + dir; if (to < 0 || to >= flat.length) return;
+    var tmp = flat[idx].n; flat[idx].n = flat[to].n; flat[to].n = tmp;
+    job.draft.sections.forEach(function (s) { s.photos = []; });
+    flat.forEach(function (f) { job.draft.sections[f.s].photos.push(f.n); });
+    dirty = true; flush().then(function () { renderJob(); });
+  }
+
+  /* ───────── 표지: 사진 고르기 · 끌어서 위치 · 확대 · 파일 업로드 ───────── */
+  var FRAME = 2206 / 1996; // 표지 사진 틀의 가로/세로 (cover.js 와 같다)
+  var cv = { photo: null, x: 50, y: 50, zoom: 1, aspect: FRAME, timer: null, seq: 0 };
+
+  function coverBusy(on, text) {
+    var el = $('#coverBusy'); if (!el) return;
+    el.classList.toggle('hide', !on); if (text) el.textContent = text;
+  }
+
+  /** 미리보기 틀 안에서 사진이 깔리는 크기·위치. 서버(cover.js)와 같은 식이다. */
+  function stageGeom() {
+    var st = $('#coverStage'); var W = st.clientWidth, H = W / FRAME;
+    var dh = cv.aspect >= FRAME ? H * cv.zoom : (W * cv.zoom) / cv.aspect;
+    var dw = dh * cv.aspect;
+    return { W: W, H: H, dw: dw, dh: dh, ox: dw - W, oy: dh - H };
+  }
+  function paintStage() {
+    var st = $('#coverStage'); if (!st || !cv.photo) return;
+    var g = stageGeom();
+    st.style.backgroundImage = 'url("' + photoUrl(cv.photo, true) + '")';
+    st.style.backgroundSize = g.dw + 'px ' + g.dh + 'px';
+    st.style.backgroundPosition = cv.x + '% ' + cv.y + '%';
+    $('#coverZoom').value = Math.round(cv.zoom * 100);
+  }
+  function loadAspect(name) {
+    return new Promise(function (res) {
+      var im = new Image();
+      im.onload = function () { cv.aspect = im.naturalWidth / im.naturalHeight; res(); };
+      im.onerror = function () { res(); };
+      im.src = photoUrl(name, true);
+    });
+  }
+
+  /** 서버에 표지를 다시 만들게 한다. 여러 번 연달아 불려도 마지막 것만 화면에 반영한다. */
+  function applyCover(body) {
+    clearTimeout(cv.timer);
+    var seq = ++cv.seq; coverBusy(true, '표지 만드는 중…');
+    flush().then(function () {
+      return api('/jobs/' + job.id + '/cover', { method: 'POST', body: body || { photo: cv.photo, x: cv.x, y: cv.y, zoom: cv.zoom } });
+    }).then(function (r) {
+      if (seq !== cv.seq) return;
+      job.cover = r.cover; job.error = r.error;
+      var img = $('#coverImg'); if (img) img.src = API + '/jobs/' + job.id + '/cover.jpg?t=' + (r.cover.at || Date.now());
+      var er = $('#jErr'); if (er) er.textContent = '';
+      coverBusy(false);
+    }).catch(function (e) {
+      if (seq !== cv.seq) return;
+      coverBusy(false); var er = $('#jErr'); if (er) er.textContent = '표지를 만들지 못했습니다 — ' + e.message;
+    });
+  }
+  function scheduleApply() { clearTimeout(cv.timer); cv.timer = setTimeout(function () { applyCover(); }, 900); }
+
+  function initCover() {
+    var c = job.cover || {};
+    cv.photo = c.photo; cv.x = c.x != null ? c.x : 50; cv.y = c.y != null ? c.y : (c['초점Y'] != null ? c['초점Y'] : 50); cv.zoom = c.zoom || 1; cv.aspect = FRAME;
+    if (cv.photo) loadAspect(cv.photo).then(paintStage);
+
+    // 사진을 끌어 위치 맞추기
+    var st = $('#coverStage'), drag = null;
+    st.onpointerdown = function (e) {
+      var g = stageGeom(); drag = { px: e.clientX, py: e.clientY, x0: cv.x, y0: cv.y, g: g };
+      st.classList.add('drag'); st.setPointerCapture(e.pointerId); e.preventDefault();
+    };
+    st.onpointermove = function (e) {
+      if (!drag) return;
+      var g = drag.g;
+      // 사진이 틀보다 클 때만 움직인다. 오른쪽으로 끌면 사진이 오른쪽으로 가므로 위치 %는 줄어든다.
+      if (g.ox > 1) cv.x = Math.min(100, Math.max(0, drag.x0 - (e.clientX - drag.px) / g.ox * 100));
+      if (g.oy > 1) cv.y = Math.min(100, Math.max(0, drag.y0 - (e.clientY - drag.py) / g.oy * 100));
+      paintStage();
+    };
+    var end = function () { if (!drag) return; drag = null; st.classList.remove('drag'); scheduleApply(); };
+    st.onpointerup = end; st.onpointercancel = end;
+
+    $('#coverZoom').oninput = function () { cv.zoom = Number(this.value) / 100; paintStage(); scheduleApply(); };
+    $('#coverReset').onclick = function () { cv.x = 50; cv.y = 50; cv.zoom = 1; paintStage(); applyCover(); };
+
+    // 올린 사진 중에서 고르기 — 누르면 바로 표지가 바뀐다 (위치·확대는 처음 상태로)
+    document.querySelectorAll('#coverPick .thumb').forEach(function (t) {
+      t.onclick = function () {
+        var n = t.dataset.n; if (n === cv.photo) return;
+        cv.photo = n; cv.x = 50; cv.y = 50; cv.zoom = 1;
+        document.querySelectorAll('#coverPick .thumb').forEach(function (o) { o.classList.toggle('cover', o === t); });
+        loadAspect(n).then(paintStage); applyCover({ photo: n, x: 50, y: 50, zoom: 1 });
+      };
+    });
+
+    // 표지용 사진 파일 올리기 (본문 맨 앞에도 추가된다)
+    $('#coverFile').onchange = function () { var f1 = this.files[0]; this.value = ''; if (f1) uploadCoverPhoto(f1); };
+    dropZone($('#coverDrop'), function (files) { var f1 = files.filter(function (x) { return x.type.indexOf('image/') === 0 || /\.(jpe?g|png|webp|heic|gif)$/i.test(x.name); })[0]; if (f1) uploadCoverPhoto(f1); });
+  }
+
+  function uploadCoverPhoto(file) {
+    coverBusy(true, '사진 올리고 표지 만드는 중…');
+    var y = window.scrollY;
+    flush().then(function () {
+      var fd = new FormData(); fd.append('photo', file, file.name);
+      return fetch(API + '/jobs/' + job.id + '/cover-photo', { method: 'POST', body: fd }).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || '업로드 실패'); return j; }); });
+    }).then(function (r) { job = r; renderJob(); window.scrollTo(0, y); })
+      .catch(function (e) { coverBusy(false); var er = $('#jErr'); if (er) er.textContent = '표지 사진을 올리지 못했습니다 — ' + e.message; });
+  }
+
+  function setCover(body) { applyCover(body); }
+
+  var LAYOUT_NAME = { individual: '개별사진', collage: '콜라주', slide: '슬라이드' };
+  function defaultLayout(n) { return n >= 2 ? 'collage' : 'individual'; }
+  function layoutSelect(s) {
+    if ((s.photos || []).length < 2) return '<div class="muted" style="padding:10px 0">사진 1장 — 개별</div>';
+    var cur = s.layout || defaultLayout(s.photos.length);
+    return '<select class="sLayout">' + ['individual', 'collage', 'slide'].map(function (k) {
+      return '<option value="' + k + '"' + (k === cur ? ' selected' : '') + '>' + LAYOUT_NAME[k] + '</option>';
+    }).join('') + '</select>';
+  }
+
+  /* ───────── 현장 정보(공사전/공사중 · 이름 · 위치) ───────── */
+  var SIDO = ['서울', '경기', '인천', '부산', '대구', '대전', '세종', '광주', '울산', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'];
+  function infoCard(j) {
+    return '<div class="card"><h2>현장 정보</h2>' +
+      '<div class="kindpick" id="jKind"><label class="kind kb"><input type="radio" name="jkind" value="before"' + (j.분류 === 'before' ? ' checked' : '') + '><b>공사전</b></label>' +
+      '<label class="kind kd"><input type="radio" name="jkind" value="during"' + (j.분류 === 'during' ? ' checked' : '') + '><b>공사중</b></label></div>' +
+      '<div class="muted" style="margin:4px 0 8px">바꾸면 표지와 제목 후보가 새로 만들어집니다. 본문 글은 그대로입니다.</div>' +
+      '<div class="row"><div><label>시/도</label><select id="iSido">' + SIDO.map(function (v) { return '<option' + (v === j.시도 ? ' selected' : '') + '>' + v + '</option>'; }).join('') + '</select></div>' +
+      '<div><label>구/시</label><input type="text" id="iGu" value="' + esc(j.구) + '"></div><div><label>동</label><input type="text" id="iDong" value="' + esc(j.동) + '"></div></div>' +
+      '<div class="row"><div style="flex:2"><label>아파트명</label><input type="text" id="iApt" value="' + esc(j.아파트명) + '"></div><div><label>평수</label><input type="text" id="iSize" value="' + esc(j.평수) + '"></div></div>' +
+      '<button class="btn small" id="jRefresh" style="margin-top:8px">제목·표지·태그 다시 만들기</button>' +
+      '<div class="muted" style="margin-top:4px">이름·위치를 고친 뒤 눌러 주세요. 본문 속 이름까지 바꾸려면 [글 다시 만들기]를 쓰세요.</div></div>';
+  }
+  function bindInfo() {
+    document.querySelectorAll('input[name=jkind]').forEach(function (r) {
+      r.onchange = function () {
+        if (r.value === job.분류) return;
+        var to = r.value;
+        if (!confirm((to === 'before' ? '공사전' : '공사중') + ' 글로 바꾸고 표지·제목 후보를 새로 만듭니다.\n본문 글은 그대로입니다. (공사 시점에 맞게 글도 다시 쓰려면 이후 [글 다시 만들기])\n계속할까요?')) {
+          document.querySelector('input[name=jkind][value=' + job.분류 + ']').checked = true; return;
+        }
+        flush().then(function () { return api('/jobs/' + job.id, { method: 'PUT', body: { 분류: to } }); })
+          .then(function () { return api('/jobs/' + job.id + '/refresh', { method: 'POST', body: {} }); })
+          .then(function (j2) { job = j2; renderJob(); }).catch(function (e) { alert(e.message); });
+      };
+    });
+    $('#jRefresh').onclick = function () {
+      if (!confirm('현장 정보로 제목 후보·표지·태그를 다시 만듭니다. 직접 고친 제목과 태그는 새 값으로 바뀝니다. 계속할까요?')) return;
+      var loc = [$('#iSido').value, $('#iGu').value.trim(), $('#iDong').value.trim()].join('|');
+      var moved = loc !== [job.시도, job.구, job.동].join('|');
+      flush().then(function () {
+        return api('/jobs/' + job.id, { method: 'PUT', body: { 시도: $('#iSido').value, 구: $('#iGu').value.trim(), 동: $('#iDong').value.trim(), 아파트명: $('#iApt').value.trim(), 평수: $('#iSize').value.trim() } });
+      }).then(function () { return api('/jobs/' + job.id + '/refresh', { method: 'POST', body: { repickBoard: moved } }); })
+        .then(function (j2) { job = j2; renderJob(); }).catch(function (e) { alert(e.message); });
+    };
+  }
+
+  /* ───────── 해시태그 ───────── */
+  function renderTags() {
+    var box = $('#tagBox'); if (!box) return;
+    box.innerHTML = (job.tags || []).map(function (t, i) { return '<span class="tagchip">#' + esc(t) + '<button data-i="' + i + '" title="빼기">×</button></span>'; }).join('') || '<span class="muted">태그가 없습니다.</span>';
+    var sug = (job.suggestions || []).filter(function (k) { return (job.tags || []).indexOf(k) < 0; });
+    if (sug.length) box.innerHTML += '<div class="muted" style="margin-top:6px">추천 키워드 (눌러서 추가): ' + sug.map(function (k) { return '<button class="tagsug" data-k="' + esc(k) + '">+ #' + esc(k) + '</button>'; }).join('') + '</div>';
+    box.querySelectorAll('.tagchip button').forEach(function (b) { b.onclick = function () { job.tags.splice(Number(b.dataset.i), 1); touch(); renderTags(); }; });
+    box.querySelectorAll('.tagsug').forEach(function (b) { b.onclick = function () { addTag(b.dataset.k); }; });
+  }
+  function addTag(v) {
+    v = String(v || '').replace(/[\s#]/g, ''); if (!v) return;
+    job.tags = job.tags || [];
+    if (job.tags.indexOf(v) < 0 && job.tags.length < 10) job.tags.push(v);
+    touch(); renderTags();
+  }
+
+  function renderPreview() {
+    var el = $('#jPrev'); if (!el || !job.draft) return;
+    collect();
+    var h = '', hr = '<hr style="border:0;border-top:1px solid var(--line);margin:10px 0">';
+    h += '<span class="tag">표지 이미지 (맨 위)</span>';
+    job.draft.intro.split(/\n+/).filter(Boolean).forEach(function (t) { h += '<p>' + esc(t) + '</p>'; });
+    h += '<span class="tag">지도 — ' + esc((job.place && job.place.name) || job.아파트명) + '</span>' + hr;
+    job.draft.sections.forEach(function (s) {
+      if (s.photos.length) h += '<div><span class="tag" style="display:inline-block;margin:2px 0">' + LAYOUT_NAME[s.photos.length < 2 ? 'individual' : (s.layout || defaultLayout(s.photos.length))] + ' · ' + s.photos.length + '장</span><br>' +
+        s.photos.map(function (n) { return '<span class="ph" style="background-image:url(' + photoUrl(n, true) + ')"></span>'; }).join('') + '</div>';
+      s.text.split(/\n+/).filter(Boolean).forEach(function (t) { h += '<p>' + esc(t) + '</p>'; });
+    });
+    h += '<p>&nbsp;</p>';
+    job.draft.outro.split(/\n+/).filter(Boolean).forEach(function (t) { h += '<p>' + esc(t) + '</p>'; });
+    h += '<p>&nbsp;</p><p style="text-align:center;color:#ff5f45;font-size:19px;font-weight:700;margin:0">T.' + esc(((window.__settings || {}).phone) || '') + '</p>' + hr;
+    if (job.video) h += '<span class="tag">영상 — ' + esc(job.video) + '</span>';
+    h += '<div class="muted" style="margin-top:8px">' + (job.tags || []).map(function (t) { return '#' + esc(t); }).join(' ') + '</div>';
+    h += '<div class="muted" style="margin-top:6px">본문 글꼴은 나눔바른고딕(15)으로 맞춰 올라갑니다.</div>';
+    el.innerHTML = h;
+  }
+
+  function startGen() {
+    $('#jErr').textContent = '';
+    api('/jobs/' + job.id + '/generate', { method: 'POST' }).then(function () {
+      job.running = true; logAfter = 0;
+      var l = $('#jLog'); if (l) { l.classList.remove('hide'); l.innerHTML = ''; }
+      ['#jGen', '#jRegen', '#jPub'].forEach(function (s) { var b = $(s); if (b) b.disabled = true; });
+      startPoll('/log/' + job.id, 'job');
+    }).catch(function (e) { $('#jErr').textContent = e.message; });
+  }
+
+  /** 카페에 입력 + 임시 저장. 크롬 창은 뜨지 않고 백그라운드에서 돌며, 끝나면 알려 준다. */
+  function runPublish() {
+    flush().then(function () {
+      var key = 'pub-' + job.id;
+      return api('/jobs/' + job.id + '/publish', { method: 'POST', body: { mode: 'draft' } }).then(function () {
+        job.running = true; logAfter = 0; notifyWhenDone = true;
+        $('#jErr').textContent = '';
+        var l = $('#jLog'); l.classList.remove('hide'); l.innerHTML = '';
+        ['#jRegen', '#jPub'].forEach(function (s) { var b = $(s); if (b) b.disabled = true; });
+        startPoll('/log/' + key, 'job');
+      });
+    }).catch(function (e) { $('#jErr').textContent = e.message; });
+  }
+
+  /* ───────── 완료 알림 ───────── */
+  var notifyWhenDone = false;
+  function askNotify() {
+    try { if (window.Notification && Notification.permission === 'default') Notification.requestPermission(); } catch (e) { /* 알림을 못 써도 화면 안내는 나온다 */ }
+  }
+  /** 화면 위 안내 + (허용했다면) 시스템 알림 + 탭 제목 */
+  function notify(title, body, bad) {
+    var el = $('#toast');
+    if (!el) { el = document.createElement('div'); el.id = 'toast'; el.onclick = function () { el.classList.add('hide'); }; document.body.appendChild(el); }
+    el.className = 'toast' + (bad ? ' bad' : ''); el.innerHTML = '<b></b><div></div>';
+    el.firstChild.textContent = title; el.lastChild.textContent = body;
+    var old = document.title; document.title = (bad ? '⚠ ' : '✔ ') + title;
+    setTimeout(function () { document.title = old; }, 15000);
+    try { if (window.Notification && Notification.permission === 'granted') new Notification(title, { body: body }); } catch (e) { /* 무시 */ }
+  }
+
+  /* ───────── 로그 가져오기 ───────── */
+  function appendLog(box, lines) {
+    lines.forEach(function (l) { var d = document.createElement('div'); d.className = l.level; d.textContent = l.m; box.appendChild(d); });
+    box.scrollTop = box.scrollHeight;
+  }
+  function startPoll(path, mode, box, after) {
+    stopPoll();
+    polling = setInterval(function () {
+      api(path + '?after=' + logAfter).then(function (r) {
+        var b = box || $('#jLog'); if (b && r.lines.length) appendLog(b, r.lines);
+        logAfter = r.next;
+        if (!r.running) {
+          stopPoll();
+          if (mode === 'job') api('/jobs/' + currentId).then(function (j) {
+            job = j; renderJob(); var l = $('#jLog'); if (l) l.classList.add('hide'); if (r.error) $('#jErr').textContent = r.error;
+            if (notifyWhenDone) {
+              notifyWhenDone = false;
+              if (r.error) notify('카페 임시 저장 실패', r.error, true);
+              else notify('카페 임시 저장 완료', '[' + (j.board ? j.board.name : '카페') + '] ' + j.title + ' — 카페 글쓰기의 [임시등록]에서 확인 후 등록하세요.');
+            }
+          });
+          else if (after) after();
+        }
+      }).catch(function () {});
+    }, 1500);
+  }
+
+  /* ───────── 설정 ───────── */
+  function showSetup(st) {
+    var w = $('#setupWarn');
+    if (st && !st.cafeId) {
+      w.style.display = 'block';
+      w.innerHTML = '<b>처음 설정이 필요합니다.</b><br>저장소 맨 위의 <code>cafe.config.example.json</code> 을 <code>cafe.config.json</code> 으로 복사하고 <code>cafeId</code> 를 넣은 뒤 서버를 다시 켜 주세요. (README 참고)';
+    } else if (st) {
+      w.style.display = 'none';
+    }
+  }
+  function loadSettings() {
+    api('/status').then(function (s) {
+      var c = s.chrome || {};
+      $('#chromeTxt').textContent = c.loggedIn ? '카페 로그인됨 (로그인 창은 닫아도 됩니다)' : (c.running ? '로그인 창이 열려 있습니다 · 아직 로그인 안 됨' : '로그인 필요 — [로그인 창 열기]를 눌러 주세요');
+      $('#s-phone').value = s.settings.phone || ''; $('#s-home').value = s.settings.homepage || '';
+      window.__settings = s.settings;
+      showSetup(s.setup);
+      drawBoards(s.boards);
+    });
+    api('/style').then(drawStyle);
+  }
+  function drawStyle(st) {
+    $('#styleList').innerHTML = st.links.map(function (l) {
+      return '<div class="list-item" style="cursor:default"><div class="t"><b>' + esc(l.title || l.id) + '</b><span class="muted">글 ' + esc(l.id) + ' · ' + (l.source === 'pdf' ? '처음 등록' : '링크') + '</span></div>' +
+        (l.kind ? '<span class="badge b-' + l.kind + '">' + KIND[l.kind] + '</span>' : '') + '<button class="btn small danger" data-id="' + l.id + '">빼기</button></div>';
+    }).join('') || '<div class="muted">등록된 글이 없습니다.</div>';
+    document.querySelectorAll('#styleList button[data-id]').forEach(function (b) {
+      b.onclick = function () { if (confirm('이 글을 기준 글에서 뺄까요? (이미 정리된 지침은 그대로이고, 전체 재분석 때만 빠집니다)')) api('/style/link/' + b.dataset.id, { method: 'DELETE' }).then(drawStyle); };
+    });
+    $('#styleGuide').textContent = st.guide || '(아직 분석 전입니다. [전체를 처음부터 다시 분석]을 눌러 주세요.)';
+  }
+  function runStyle(path, body) {
+    var box = $('#styleLog'); box.classList.remove('hide'); box.innerHTML = ''; logAfter = 0;
+    api(path, { method: 'POST', body: body }).then(function () {
+      startPoll('/log/style', 'style', box, function () { api('/style').then(drawStyle); loadStatus(); });
+    }).catch(function (e) { box.textContent = e.message; });
+  }
+  $('#btnStyleAdd').onclick = function () { var u = $('#styleUrl').value.trim(); if (u) { runStyle('/style/link', { url: u }); $('#styleUrl').value = ''; } };
+  $('#btnStyleRebuild').onclick = function () { runStyle('/style/rebuild'); };
+
+  function drawBoards(b) {
+    var rows = Object.keys(b.byRegion).map(function (r) {
+      return '<tr><td>' + esc(r) + '</td><td>' + esc(b.byRegion[r].name) + ' <span class="muted">(' + b.byRegion[r].menuId + ')</span></td></tr>';
+    }).join('');
+    $('#boardTable').innerHTML = '<table>' + rows + '</table><div class="muted" style="margin-top:6px">' + (b.updatedAt ? '마지막으로 불러온 시각 ' + new Date(b.updatedAt).toLocaleString('ko-KR') : '레퍼런스 글에서 확인한 서울·부산·대전/세종만 들어 있습니다. 로그인 후 [불러오기]로 나머지를 채우세요.') + '</div>';
+  }
+  $('#btnBoards').onclick = function () {
+    var box = $('#boardLog'); box.classList.remove('hide'); box.innerHTML = ''; logAfter = 0;
+    api('/boards/refresh', { method: 'POST' }).then(function () {
+      startPoll('/log/boards', 'boards', box, function () { api('/boards').then(drawBoards); });
+    }).catch(function (e) { box.textContent = e.message; });
+  };
+  $('#btnChrome').onclick = function () {
+    $('#btnChrome').disabled = true;
+    api('/chrome/open', { method: 'POST' }).then(function () { $('#chromeTxt').textContent = '크롬 창을 열었습니다. 카페에 로그인한 뒤 이 화면으로 돌아오세요.'; setTimeout(function () { $('#btnChrome').disabled = false; loadStatus(); }, 4000); })
+      .catch(function (e) { $('#chromeTxt').textContent = e.message; $('#btnChrome').disabled = false; });
+  };
+  $('#btnSettings').onclick = function () {
+    api('/settings', { method: 'PUT', body: { phone: $('#s-phone').value, homepage: $('#s-home').value } }).then(function (s) { window.__settings = s; $('#btnSettings').textContent = '저장됨'; setTimeout(function () { $('#btnSettings').textContent = '저장'; }, 1500); });
+  };
+
+  api('/settings').then(function (s) { window.__settings = s; }).catch(function () {});
+  show('jobs');
+  setInterval(function () { if (view === 'jobs') loadStatus(); }, 8000);
+  window.addEventListener('beforeunload', function () { if (dirty) flush(); });
+})();
+</script>
+</body>
+</html>
